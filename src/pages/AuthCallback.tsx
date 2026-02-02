@@ -53,7 +53,6 @@ export default function AuthCallback() {
 
     handleAuthCallback();
   }, [navigate]);
-  }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
