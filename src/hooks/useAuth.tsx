@@ -61,14 +61,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string, role?: 'user' | 'owner') => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     
-    if (!error && role) {
+    if (error) {
+      return { error: new Error(error.message) };
+    }
+
+    // Check if user has a role in the database
+    if (data.user && role) {
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', data.user.id)
+        .single();
+
+      if (roleError && roleError.code !== 'PGRST116') {
+        // Error other than "not found"
+        console.error('Error checking user role:', roleError);
+      }
+
+      if (roleData) {
+        // User has an existing role
+        if (roleData.role !== role) {
+          // Role mismatch - sign out and return error
+          await supabase.auth.signOut();
+          return { 
+            error: new Error(
+              role === 'owner' 
+                ? 'This account is registered as a customer. Please use a different account to sign in as a restaurant owner.' 
+                : 'This account is registered as a restaurant owner. Please use a different account to sign in as a customer.'
+            ) 
+          };
+        }
+      } else {
+        // No role exists, create one
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert({ user_id: data.user.id, role });
+        
+        if (insertError) {
+          console.error('Error saving user role:', insertError);
+        }
+      }
+
       // Store role in localStorage for post-login routing
       localStorage.setItem('selectedRole', role);
     }
     
-    return { error: error ? new Error(error.message) : null };
+    return { error: null };
   };
 
   const signUp = async (email: string, password: string, role?: 'user' | 'owner') => {
@@ -80,20 +120,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('selectedRole', role);
     }
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
       },
     });
+
+    // Save role to database if signup was successful and user is confirmed
+    if (!error && data.user && role) {
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: data.user.id, role });
+      
+      if (roleError) {
+        console.error('Error saving user role:', roleError);
+      }
+    }
+
     return { error: error ? new Error(error.message) : null };
   };
 
   const signInWithGoogle = async (role: 'user' | 'owner') => {
     try {
-      // Store role in localStorage for post-login routing
+      // Store role in localStorage for post-login routing and role verification
       localStorage.setItem('selectedRole', role);
+      localStorage.setItem('pendingGoogleRole', role);
       
       // Determine redirect URL based on role and environment
       const getRedirectUrl = () => {

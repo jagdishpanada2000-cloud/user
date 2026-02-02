@@ -114,3 +114,17 @@ create table public.favorite_menu_items (
 create index IF not exists idx_favorite_menu_items_user_id on public.favorite_menu_items using btree (user_id) TABLESPACE pg_default;
 
 create index IF not exists idx_favorite_menu_items_menu_item_id on public.favorite_menu_items using btree (menu_item_id) TABLESPACE pg_default;
+
+
+create table public.user_roles (
+  id uuid not null default gen_random_uuid (),
+  user_id uuid not null,
+  role text not null check (role in ('user', 'owner')),
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint user_roles_pkey primary key (id),
+  constraint user_roles_user_id_key unique (user_id),
+  constraint user_roles_user_id_fkey foreign KEY (user_id) references auth.users (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_user_roles_user_id on public.user_roles using btree (user_id) TABLESPACE pg_default;
