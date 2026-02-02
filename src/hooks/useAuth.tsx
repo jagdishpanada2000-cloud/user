@@ -66,9 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
-    // Use environment-aware redirect URL
-    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const redirectUrl = isDev ? 'http://localhost:8081/auth/callback' : `${window.location.origin}/auth/callback`;
+    // Redirect back to the same app where signup was initiated
+    const redirectUrl = `${window.location.origin}/auth/callback`;
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -82,17 +81,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
-      // Determine redirect URL based on environment
+      // Determine redirect URL based on environment and current app
       const getRedirectUrl = () => {
         // Check if we're in development (localhost)
         const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         
         if (isDev) {
-          // In development, redirect to dashboard callback on port 8080
-          return 'http://localhost:8080/auth/callback';
+          // In development, redirect back to the same app
+          return `${window.location.origin}/auth/callback`;
         } else {
-          // In production, use the current origin + /auth/callback
-          // This will be your Vercel URL
+          // In production, redirect back to the same app
           return `${window.location.origin}/auth/callback`;
         }
       };
