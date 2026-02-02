@@ -30,9 +30,19 @@ export default function AuthCallback() {
           return;
         }
 
-        // Successfully authenticated, redirect to home
-        toast.success('Login successful!');
-        navigate('/');
+        // Successfully authenticated, check for stored role and redirect accordingly
+        const storedRole = localStorage.getItem('selectedRole') as 'user' | 'owner' | null;
+        localStorage.removeItem('selectedRole'); // Clean up
+        
+        if (storedRole === 'owner') {
+          const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          const dashboardUrl = isDev ? 'http://localhost:8080/' : 'https://dashboard-eight-swart-98.vercel.app/';
+          window.location.href = dashboardUrl;
+        } else {
+          // Default to user app
+          toast.success('Login successful!');
+          navigate('/');
+        }
         
       } catch (err) {
         console.error('Error during auth callback:', err);

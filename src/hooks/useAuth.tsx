@@ -7,9 +7,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signInWithGoogle: () => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string, role?: 'user' | 'owner') => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, role?: 'user' | 'owner') => Promise<{ error: Error | null }>;
+  signInWithGoogle: (role: 'user' | 'owner') => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -60,14 +60,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, role?: 'user' | 'owner') => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    
+    if (!error && role) {
+      // Store role in localStorage for post-login routing
+      localStorage.setItem('selectedRole', role);
+    }
+    
     return { error: error ? new Error(error.message) : null };
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, role?: 'user' | 'owner') => {
     // Redirect back to the same app where signup was initiated
     const redirectUrl = `${window.location.origin}/auth/callback`;
+    
+    if (role) {
+      // Store role in localStorage for post-signup routing
+      localStorage.setItem('selectedRole', role);
+    }
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -79,19 +90,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? new Error(error.message) : null };
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (role: 'user' | 'owner') => {
     try {
-      // Determine redirect URL based on environment and current app
+      // Store role in localStorage for post-login routing
+      localStorage.setItem('selectedRole', role);
+      
+      // Determine redirect URL based on role and environment
       const getRedirectUrl = () => {
-        // Check if we're in development (localhost)
         const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         
-        if (isDev) {
-          // In development, redirect back to the same app
-          return `${window.location.origin}/auth/callback`;
+        if (role === 'owner') {
+          // Redirect to dashboard
+          return isDev ? 'http://localhost:8080/auth/callback' : 'https://dashboard-eight-swart-98.vercel.app/auth/callback';
         } else {
-          // In production, redirect back to the same app
-          return `${window.location.origin}/auth/callback`;
+          // Redirect to user app
+          return isDev ? 'http://localhost:8081/auth/callback' : `${window.location.origin}/auth/callback`;
         }
       };
 
