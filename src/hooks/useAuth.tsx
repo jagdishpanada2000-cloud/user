@@ -21,21 +21,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    let initialCheckDone = false;
+
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+        
+        // Only set loading to false after initial session check is complete
+        if (initialCheckDone) {
+          setLoading(false);
+        }
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+        setSession(session);
+        setUser(session?.user ?? null);
+      } catch (error) {
+        console.error('Session initialization error:', error);
+        setSession(null);
+        setUser(null);
+      } finally {
+        initialCheckDone = true;
+        setLoading(false);
+      }
+    };
+
+    getInitialSession();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -46,7 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    // Use environment-aware redirect URL
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const redirectUrl = isDev ? 'http://localhost:8081/auth/callback' : `${window.location.origin}/auth/callback`;
+    
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -59,12 +82,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
+      // Determine redirect URL based on environment
+      const getRedirectUrl = () => {
+        // Check if we're in development (localhost)
+        const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        if (isDev) {
+          // In development, redirect to dashboard callback on port 8080
+          return 'http://localhost:8080/auth/callback';
+        } else {
+          // In production, use the current origin + /auth/callback
+          // This will be your Vercel URL
+          return `${window.location.origin}/auth/callback`;
+        }
+      };
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // Explicitly redirect to the OWNER dashboard callback as per requirements
-          // This allows the dashboard to handle the specialized role-check first
-          redirectTo: `http://localhost:8080/auth/callback`,
+          redirectTo: getRedirectUrl(),
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

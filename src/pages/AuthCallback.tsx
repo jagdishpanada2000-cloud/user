@@ -12,31 +12,43 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      // 1. Check if we have a session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        console.error('Session error or not found:', sessionError);
-        navigate('/auth');
-        return;
-      }
-
       try {
-        // 2. Query the restaurants table to check if the user is an owner
-        // Database schema is FINAL: check restaurants.owner_id === auth.uid()
+        // 1. Handle the auth callback first
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error('Auth callback error:', error);
+          navigate('/auth');
+          return;
+        }
+
+        // 2. If no session, redirect to auth
+        if (!data.session) {
+          console.log('No session found after callback');
+          navigate('/auth');
+          return;
+        }
+
+        // 3. Query the restaurants table to check if the user is an owner
         const { data: ownershipData, error: dbError } = await supabase
           .from('restaurants')
           .select('id')
-          .eq('owner_id', session.user.id)
+          .eq('owner_id', data.session.user.id)
           .maybeSingle();
 
-        if (dbError) throw dbError;
+        if (dbError) {
+          console.error('Database error during role check:', dbError);
+          throw dbError;
+        }
 
         if (ownershipData) {
           // RULE: If a restaurant exists -> allow dashboard access
           // Redirect the owner back to the dashboard
+          const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          const dashboardUrl = isDev ? 'http://localhost:8080/' : 'https://your-dashboard.vercel.app/';
+          
           toast.info('Owner detected. Redirecting to Dashboard...');
-          window.location.href = 'http://localhost:8080/';
+          window.location.href = dashboardUrl;
         } else {
           // RULE: If not -> block dashboard and keep user in user app
           // They are a customer, so send them to the User App home page
