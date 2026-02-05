@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         // Only set loading to false after initial session check is complete
         if (initialCheckDone) {
           setLoading(false);
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string, role?: 'user' | 'owner') => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    
+
     if (error) {
       return { error: new Error(error.message) };
     }
@@ -85,12 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (roleData.role !== role) {
           // Role mismatch - sign out and return error
           await supabase.auth.signOut();
-          return { 
+          return {
             error: new Error(
-              role === 'owner' 
-                ? 'This account is registered as a customer. Please use a different account to sign in as a restaurant owner.' 
+              role === 'owner'
+                ? 'This account is registered as a customer. Please use a different account to sign in as a restaurant owner.'
                 : 'This account is registered as a restaurant owner. Please use a different account to sign in as a customer.'
-            ) 
+            )
           };
         }
       } else {
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error: insertError } = await supabase
           .from('user_roles')
           .insert({ user_id: data.user.id, role });
-        
+
         if (insertError) {
           console.error('Error saving user role:', insertError);
         }
@@ -107,19 +107,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Store role in localStorage for post-login routing
       localStorage.setItem('selectedRole', role);
     }
-    
+
     return { error: null };
   };
 
   const signUp = async (email: string, password: string, role?: 'user' | 'owner') => {
     // Redirect back to the same app where signup was initiated
     const redirectUrl = `${window.location.origin}/auth/callback`;
-    
+
     if (role) {
       // Store role in localStorage for post-signup routing
       localStorage.setItem('selectedRole', role);
     }
-    
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({ user_id: data.user.id, role });
-      
+
       if (roleError) {
         console.error('Error saving user role:', roleError);
       }
@@ -147,24 +147,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Store role in localStorage for post-login routing and role verification
       localStorage.setItem('selectedRole', role);
       localStorage.setItem('pendingGoogleRole', role);
-      
-      // Determine redirect URL based on role and environment
-      const getRedirectUrl = () => {
-        const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        
-        if (role === 'owner') {
-          // Redirect to dashboard
-          return isDev ? 'http://localhost:8080/auth/callback' : 'https://dashboard-eight-swart-98.vercel.app/auth/callback';
-        } else {
-          // Redirect to user app
-          return isDev ? 'http://localhost:8081/auth/callback' : `${window.location.origin}/auth/callback`;
-        }
-      };
+
+      // Determine redirect URL - always use the current app's callback
+      const redirectUrl = `${window.location.protocol}//${window.location.host}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: getRedirectUrl(),
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

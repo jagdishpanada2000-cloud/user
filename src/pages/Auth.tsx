@@ -19,7 +19,7 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<'user' | 'owner'>('user');
+  const selectedRole = 'user';
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
@@ -69,14 +69,7 @@ export default function Auth() {
           }
         } else {
           toast.success('Welcome back!');
-          // Role-based redirect
-          if (selectedRole === 'owner') {
-            window.location.href = window.location.hostname === 'localhost' 
-              ? 'http://localhost:8080/' 
-              : 'https://dashboard-eight-swart-98.vercel.app/';
-          } else {
-            navigate('/');
-          }
+          navigate('/');
         }
       } else {
         const { error } = await signUp(formData.email, formData.password, selectedRole);
@@ -89,14 +82,7 @@ export default function Auth() {
           }
         } else {
           toast.success('Account created! You can now sign in.');
-          // Role-based redirect
-          if (selectedRole === 'owner') {
-            window.location.href = window.location.hostname === 'localhost' 
-              ? 'http://localhost:8080/' 
-              : 'https://dashboard-eight-swart-98.vercel.app/';
-          } else {
-            navigate('/');
-          }
+          navigate('/');
         }
       }
     } catch (err) {
@@ -107,7 +93,7 @@ export default function Auth() {
   };
 
   const handleGoogleSignIn = async () => {
-    const { error } = await signInWithGoogle(selectedRole);
+    const { error } = await signInWithGoogle('user');
     if (error) {
       toast.error('Failed to sign in with Google. Please ensure Google authentication is configured.');
     }
@@ -141,41 +127,6 @@ export default function Auth() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Role Selection */}
-            <div>
-              <Label>I am a</Label>
-              <div className="flex gap-2 mt-2">
-                <button
-                  type="button"
-                  className={`flex-1 p-3 rounded-lg border-2 transition-all ${
-                    selectedRole === 'user'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border hover:border-primary/30'
-                  }`}
-                  onClick={() => setSelectedRole('user')}
-                >
-                  <div className="text-center">
-                    <div className="text-lg font-semibold">Customer</div>
-                    <div className="text-xs opacity-70">Browse & order food</div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className={`flex-1 p-3 rounded-lg border-2 transition-all ${
-                    selectedRole === 'owner'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border hover:border-primary/30'
-                  }`}
-                  onClick={() => setSelectedRole('owner')}
-                >
-                  <div className="text-center">
-                    <div className="text-lg font-semibold">Restaurant Owner</div>
-                    <div className="text-xs opacity-70">Manage restaurant</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-
             <div>
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -286,6 +237,6 @@ export default function Auth() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

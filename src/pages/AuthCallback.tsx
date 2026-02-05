@@ -36,7 +36,7 @@ export default function AuthCallback() {
         localStorage.removeItem('selectedRole'); // Clean up
         localStorage.removeItem('pendingGoogleRole'); // Clean up
 
-        const roleToUse = pendingGoogleRole || storedRole || 'user';
+        const roleToUse = 'user'; // Force user role for this app
 
         // Check if user already has a role in the database
         const { data: roleData, error: roleError } = await supabase
@@ -50,38 +50,26 @@ export default function AuthCallback() {
         }
 
         if (roleData) {
-          // User has an existing role - check if it matches
-          if (roleData.role !== roleToUse) {
-            // Role mismatch - sign out and show error
-            await supabase.auth.signOut();
-            const errorMessage = roleToUse === 'owner'
-              ? 'This account is registered as a customer. Please use a different account to sign in as a restaurant owner.'
-              : 'This account is registered as a restaurant owner. Please use a different account to sign in as a customer.';
-            toast.error(errorMessage);
-            navigate('/auth');
-            return;
-          }
+          // User has an existing role
+          // In the single-app version, we might want to be more lenient or just ensure they can login
+          // but for now let's just proceed.
+          // If we really want to enforce "user" role, we could check it here.
+          // For now, let's just log them in.
         } else {
           // No role exists, create one
           const { error: insertError } = await supabase
             .from('user_roles')
             .insert({ user_id: data.session.user.id, role: roleToUse });
-          
+
           if (insertError) {
             console.error('Error saving user role:', insertError);
           }
         }
-        
-        if (roleToUse === 'owner') {
-          const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-          const dashboardUrl = isDev ? 'http://localhost:8080/' : 'https://dashboard-eight-swart-98.vercel.app/';
-          window.location.href = dashboardUrl;
-        } else {
-          // Default to user app
-          toast.success('Login successful!');
-          navigate('/');
-        }
-        
+
+        // Default to user app
+        toast.success('Login successful!');
+        navigate('/');
+
       } catch (err) {
         console.error('Error during auth callback:', err);
         toast.error('Authentication error occurred');
